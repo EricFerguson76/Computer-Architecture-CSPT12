@@ -4,6 +4,8 @@ import sys
 
 LDI = 0b10000010
 PRN = 0b01000111
+ADD = 0b10100000
+MUL = 0b10100010
 HLT = 0b00000001
 
 
@@ -16,33 +18,47 @@ class CPU:
         self.reg = [0] * 8
         self.pc = 0
 
+        self.branchtable = {
+            HLT: self.hlt,
+            LDI: self.ldi,
+            PRN: self.prn,
+        }
+
     def load(self):
         """Load a program into memory."""
 
+        if (len(sys.argv)) != 2:
+            print("usage: python3 ls8.py filename")
+            sys.exit(1)
+
         address = 0
 
-        # For now, we've just hardcoded a program:
+        try:
+            with open(sys.argv[1]) as f:
+                for line in f:
+                    possible_number = line[:line.find('#')]
+                    if possible_number == '':
+                        continue
 
-        program = [
-            # From print8.ls8
-            0b10000010,  # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111,  # PRN R0
-            0b00000000,
-            0b00000001,  # HLT
-        ]
+                    instruction = int(possible_number, 2)
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+                    self.ram[address] = instruction
+
+                    address += 1
+
+        except FileNotFoundError:
+            print(f'Error from {sys.argv[0]}: {sys.argv[1]} not found')
+            sys.exit()
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
-        if op == "ADD":
+        if op == ADD:
             self.reg[reg_a] += self.reg[reg_b]
-        # elif op == "SUB": etc
+
+        elif op == MUL:
+            self.reg[reg_a] *= self.reg[reg_b]
+
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -52,8 +68,18 @@ class CPU:
     def ram_write(self, MAR, MDR):
         self.ram[MAR] = MDR
 
+    def hlt(self, op_a, op_b):
+        self.running = False
+
+    def ldi(self, op_a, op_b):
+        self.reg[op_a] = op_b
+
+    def prn(self, op_a, op_b):
+        print(self.reg[op_a])
+
     def run(self):
         """Run the CPU."""
+
         self.running = True
 
         while self.running:
@@ -63,21 +89,16 @@ class CPU:
 
             op_b = self.ram_read(self.pc + 2)
 
-            if ir == LDI:
-                self.reg[op_a] = op_b
-                self.pc += 3
+            num_operands = ir >> 6
+            self.pc += 1 + num_operands
 
-            elif ir == PRN:
-                print(self.reg[op_a])
-                self.pc += 2
+            is_alu_op = ((ir >> 5) & 0b001) == 1
 
-            elif ir == HLT:
-                self.running = False
-                self.pc + 1
+            if is_alu_op:
+                self.alu(ir, op_a, op_b)
 
             else:
-                print('unknown command!')
-                self.running = False
+                self.branchtable[ir](op_a, op_b)
 
     def trace(self):
         """
