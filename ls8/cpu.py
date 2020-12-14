@@ -6,6 +6,8 @@ LDI = 0b10000010
 PRN = 0b01000111
 ADD = 0b10100000
 MUL = 0b10100010
+PUSH = 0b01000101
+POP = 0b01000110
 HLT = 0b00000001
 
 
@@ -16,12 +18,15 @@ class CPU:
         """Construct a new CPU."""
         self.ram = [0] * 256
         self.reg = [0] * 8
+        self.reg[7] = 0xF4
         self.pc = 0
 
         self.branchtable = {
             HLT: self.hlt,
             LDI: self.ldi,
             PRN: self.prn,
+            PUSH: self.push,
+            POP: self.pop
         }
 
     def load(self):
@@ -76,6 +81,18 @@ class CPU:
 
     def prn(self, op_a, op_b):
         print(self.reg[op_a])
+
+    def push(self, op_a, op_b):
+        self.reg[7] -= 1
+        value = self.reg[op_a]
+        SP = self.reg[7]
+        self.ram_write(SP, value)
+
+    def pop(self, op_a, op_b):
+        SP = self.reg[7]
+        value = self.ram_read(SP)
+        self.reg[op_a] = value
+        self.reg[7] += 1
 
     def run(self):
         """Run the CPU."""
