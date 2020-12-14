@@ -10,6 +10,13 @@ PUSH = 0b01000101
 POP = 0b01000110
 HLT = 0b00000001
 
+# SPRINT--------
+
+CMP = 0b10100111
+JEQ = 0b01010101
+JMP = 0b01010100
+JNE = 0b01010110
+
 
 class CPU:
     """Main CPU class."""
@@ -19,6 +26,7 @@ class CPU:
         self.ram = [0] * 256
         self.reg = [0] * 8
         self.reg[7] = 0xF4
+        self.fl = 0b00000000
         self.pc = 0
 
         self.branchtable = {
@@ -26,7 +34,13 @@ class CPU:
             LDI: self.ldi,
             PRN: self.prn,
             PUSH: self.push,
-            POP: self.pop
+            POP: self.pop,
+
+            # SPRINT--------
+
+            JEQ: self. jeq,
+            JMP: self.jmp,
+            JNE: self.jne
         }
 
     def load(self):
@@ -64,6 +78,18 @@ class CPU:
         elif op == MUL:
             self.reg[reg_a] *= self.reg[reg_b]
 
+        # SPRINT--------------------------------
+
+        elif op == CMP:
+            if self.reg[reg_a] == self.reg[reg_b]:
+                self.fl = 0b00000001
+
+            elif self.reg[reg_a] < self.reg[reg_b]:
+                self.fl = 0b00000100
+
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                self.fl = 0b00000010
+
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -93,6 +119,22 @@ class CPU:
         value = self.ram_read(SP)
         self.reg[op_a] = value
         self.reg[7] += 1
+
+    # SPRINT-----------------------
+
+    def jmp(self, op_a, op_b):
+        address = op_a
+        self.pc = self.reg[address]
+
+    def jeq(self, op_a, op_b):
+        if self.fl == 0b00000001:
+            address = op_a
+            self.pc = self.reg[address]
+
+    def jne(self, op_a, op_b):
+        if self.fl != 0b00000001:
+            address = op_a
+            self.pc = self.reg[address]
 
     def run(self):
         """Run the CPU."""
